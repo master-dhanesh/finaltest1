@@ -1,11 +1,17 @@
 import pandas as pd
-from evidently.report import Report
-from evidently.metric_preset import DataDriftPreset
+from evidently import Report
+from evidently.presets import DataDriftPreset
+from pathlib import Path
 
-df = pd.read_csv("prediction_logs.csv")
+BASE_DIR = Path(__file__).resolve().parents[1]  # project root
+csv_path = BASE_DIR / "prediction_logs.csv"
+
+df = pd.read_csv(csv_path)
 
 report = Report(metrics=[DataDriftPreset()])
-report.run(reference_data=df.iloc[: len(df) // 2], current_data=df.iloc[len(df) // 2 :])
+mid = len(df) // 2
 
-report.save_html("evidently_report.html")
-print("✅ Evidently report generated")
+result = report.run(reference_data=df.iloc[:mid], current_data=df.iloc[mid:])
+
+result.save_html(str(BASE_DIR / "evidently_report.html"))
+print("✅ Evidently report generated: evidently_report.html")
