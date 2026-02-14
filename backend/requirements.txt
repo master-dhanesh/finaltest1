@@ -7,4 +7,4 @@ Pillow
 prometheus-client>=0.20.0
 evidently>=0.4.0
 pandas>=2.0.0
-keras==3.13.0
+# keras==3.13.0

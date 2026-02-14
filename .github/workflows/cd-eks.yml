@@ -1,0 +1,61 @@
+name: CD - ECR + EKS Deploy Backend
+
+on:
+    push:
+        branches: ["main"]
+        paths:
+            - "backend/**"
+            - "models/**"
+            - "docker/backend.Dockerfile"
+            - ".github/workflows/cd-eks.yml"
+
+jobs:
+    deploy:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Configure AWS credentials
+              uses: aws-actions/configure-aws-credentials@v4
+              with:
+                  aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+                  aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+                  aws-region: ${{ secrets.AWS_REGION }}
+
+            - name: Login to Amazon ECR
+              uses: aws-actions/amazon-ecr-login@v2
+
+            - name: Build & Push to ECR
+              env:
+                  AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+                  AWS_REGION: ${{ secrets.AWS_REGION }}
+                  IMAGE_TAG: ${{ github.sha }}
+              run: |
+                  IMAGE_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/fruit-backend:$IMAGE_TAG
+                  docker build -t $IMAGE_URI -f docker/backend.Dockerfile .
+                  docker push $IMAGE_URI
+
+                  LATEST_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/fruit-backend:latest
+                  docker tag $IMAGE_URI $LATEST_URI
+                  docker push $LATEST_URI
+
+            - name: Setup kubectl
+              uses: azure/setup-kubectl@v4
+
+            - name: Update kubeconfig
+              env:
+                  AWS_REGION: ${{ secrets.AWS_REGION }}
+              run: |
+                  aws eks update-kubeconfig --name fruit-eks --region $AWS_REGION
+
+            - name: Rolling update on EKS
+              env:
+                  AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+                  AWS_REGION: ${{ secrets.AWS_REGION }}
+                  IMAGE_TAG: ${{ github.sha }}
+              run: |
+                  IMAGE_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/fruit-backend:$IMAGE_TAG
+                  kubectl set image deployment/fruit-backend api=$IMAGE_URI
+                  kubectl rollout status deployment/fruit-backend

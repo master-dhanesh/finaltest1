@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: fruit-backend
+spec:
+    replicas: 2
+    selector:
+        matchLabels:
+            app: fruit-backend
+    template:
+        metadata:
+            labels:
+                app: fruit-backend
+        spec:
+            containers:
+                - name: api
+                  image: 329599656829.dkr.ecr.us-east-1.amazonaws.com/fruit-backend:latest
+                  ports:
+                      - containerPort: 8000
+                  env:
+                      - name: MODEL_PATH
+                        value: /app/models/latest_model.keras
+                  resources:
+                      requests:
+                          cpu: "250m"
+                          memory: "512Mi"
+                      limits:
+                          cpu: "1000m"
+                          memory: "1536Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+    name: fruit-backend-svc
+spec:
+    selector:
+        app: fruit-backend
+    ports:
+        - port: 80
+          targetPort: 8000
+    type: ClusterIP
