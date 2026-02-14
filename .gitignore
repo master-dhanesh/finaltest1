@@ -22,5 +22,3 @@ env/
 .env
 .env.local
 .env.*.local
-
-cd_ec2_disabled.yml
